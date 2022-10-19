@@ -1,23 +1,23 @@
 {
-  "name": "node-websocket",
-  "version": "0.1.6",
-  "description": "parse socket buffer, add event emitter and cookie id",
+  "name": "node.websocket",
+  "version": "1.0.0",
+  "description": "A Node.js module for WebSocket server. Simple to use, blazing fast and thoroughly tested.",
   "scripts": {
     "start": "node index.js"
   },
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git@github.com:youngerheart/websocket.git"
+    "url": "git@github.com:lzpong/node.websocket.git"
   },
   "keywords": [
     "websocket",
     "node"
   ],
-  "author": "younger@blog.timehub.cc",
+  "author": "lzpong@163.com",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/youngerheart/websocket/issues"
+    "url": "https://github.com/lzpong/node.websocket/issues"
   },
-  "homepage": "https://github.com/youngerheart/websocket"
+  "homepage": "https://github.com/lzpong/node.websocket"
 }
