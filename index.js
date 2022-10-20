@@ -193,8 +193,11 @@ Server.prototype.start = function(port) {
       if(!socket.closed)
         socket.closed = true, that.emit('close', socket)
     });
-  }).listen(port,()=>{
-    console.info('WebSocket Server Running at port ' + port);
+  }).listen(port,(err)=>{
+    if(err)
+      console.error(err),console.trace();
+    else
+      console.info('WebSocket Server Running at port ' + port);
   });
 }
 
