@@ -41,6 +41,8 @@ function encodeDataFrame(frame){
     body = frame.PayloadData;
   } else { //Others
     frame.Opcode = frame.Opcode || 1;
+    if(typeof frame.PayloadData != "string")
+      frame.PayloadData = JSON.stringify(frame.PayloadData);
     body = new Buffer(frame.PayloadData);
   }
   var l = body.length;
