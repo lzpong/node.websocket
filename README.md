@@ -65,9 +65,15 @@ parse socket buffer, add event emitter and cookie id
 
 * socket.id, ID in cookie,key: socketId
 
-* Socket.prototype.send(data);
+* Socket.prototype.send(data);  
+    发送 string 或者 Buffer, 将自动识别为 文本帧 或 二进制帧;  
+    如果数据不是Buffer实例,也不是string类型对象, 将自动转换为 json-string.  
+    socket.send("text string");  
+    socket.send(new Buffer(1234));  
+    socket.send({a:1,b:"b",c:true});  
+    socket.send([1,'a',true]);
 
-* Socket.prototype.close(data);
+* Socket.prototype.close(reason);
 
 ## bug && suggestion?
 [Tell Me Please~](https://github.com/lzpong/node.websocket/issues)
