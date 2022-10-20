@@ -1,6 +1,8 @@
 # WebSocket Server <i>for Nodejs</i>
 
-parse socket buffer, add event emitter and cookie id
+简单通用的 Nodejs WebSocket Server , 可以区分每个连接的 socket.  
+A Node.js module for WebSocket server. Simple to use, blazing fast and thoroughly tested.
+
 
 ## download & install
     // in package.json
