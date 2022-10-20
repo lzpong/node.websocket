@@ -1,4 +1,4 @@
-# websocket
+# WebSocket Server <i>for Nodejs</i>
 
 parse socket buffer, add event emitter and cookie id
 
