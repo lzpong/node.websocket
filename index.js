@@ -1,34 +1,51 @@
 var crypto=require('crypto');
 
-//暂未考虑 TCP 分包/粘包
-function decodeDataFrame(buffer) {
-  var i = 0,j,s;
-  this.stream = this.stream||[];
+function decodeDataFrame(socket) {
+  if(socket.buffer==null || socket.buffer.length<2) //数据不够解析帧最小长度
+    return false;
+  var i,j,s;
+  var buffer=socket.buffer;
+  socket.stream = socket.stream||[];
   // 解析前两个字节的基本数据
   var frame = {
-    FIN: buffer[i] >> 7, //是否最后一个包(结束帧)
-    //ExtProto: (buffer[i] >> 4) & 7, //扩展协议
-    Opcode: buffer[i ++] & 15,
-    Mask: buffer[i] >> 7,
-    PayloadLength: buffer[i ++] & 0x7F
+    FIN: buffer[0] >> 7, //是否最后一个包(结束帧)
+    //ExtProto: (buffer[0] >> 4) & 7, //扩展协议
+    Opcode: buffer[0] & 15,
+    Mask: buffer[1] >> 7,
+    PayloadLength: buffer[1] & 0x7F
   };
   // 处理特殊长度126和127
-  if(frame.PayloadLength === 126) //2字节
-    frame.PayloadLength = (buffer[i ++] << 8) + buffer[i ++];
-  if(frame.PayloadLength === 127) //8字节
-    i+=4, // 长度一般用四字节的整型，前四个字节通常为长整形留空的
-    frame.PayloadLength = (buffer[i ++] << 24) + (buffer[i ++] << 16) + (buffer[i ++] << 8) + buffer[i ++];
+  if(frame.PayloadLength<126){
+    i=2;
+    if(buffer.length < (2+(frame.Mask?4:0)+frame.PayloadLength)) //数据不够帧长度
+      return false;
+  }
+  else if(frame.PayloadLength === 126){ //+2字节
+    i=4, frame.PayloadLength = (buffer[2] << 8) + buffer[3];
+    if(buffer.length < (4+(frame.Mask?4:0)+frame.PayloadLength)) //数据不够帧长度
+      return false;
+  }
+  else if(frame.PayloadLength === 127){ //+8字节
+    i=10, // 长度一般用四字节的整型，前四个字节通常为长整形留空的
+    frame.PayloadLength = (buffer[6] << 24) + (buffer[7] << 16) + (buffer[8] << 8) + buffer[9];
+    if(buffer.length < (10+(frame.Mask?4:0)+frame.PayloadLength)) //数据不够帧长度
+      return false;
+  }
   // 判断是否使用掩码
-  if(frame.Mask) // 获取掩码实体
+  if(frame.Mask) //+4字节 获取掩码实体
     frame.MaskKey = [buffer[i ++],buffer[i ++],buffer[i ++],buffer[i ++]];
   // 对数据和掩码做异或运算
   for(j = 0; j < frame.PayloadLength; j ++)
-    this.stream.push(frame.Mask ? buffer[i+j] ^ frame.MaskKey[j%4] : buffer[i+j]);
+    socket.stream.push(frame.Mask ? buffer[i+j] ^ frame.MaskKey[j%4] : buffer[i+j]);
 
-  if(!frame.FIN) return false;
+  if(!frame.FIN) return console.warn("未结束的帧",frame),false;
   // 设置上数据部分, 数组转换成缓冲区来使用
-  frame.PayloadData = new Buffer(this.stream);
-  this.stream = [];
+  frame.PayloadData = new Buffer(socket.stream);
+  socket.stream = [];
+  if(i+j<buffer.length)
+    socket.buffer=buffer.slice(i+j);
+  else
+    socket.buffer=null;
   // 返回数据帧
   return frame;
 }
@@ -42,7 +59,7 @@ function encodeDataFrame(frame){
   } else { //Others
     frame.Opcode = frame.Opcode || 1;
     if(typeof frame.PayloadData != "string")
-      frame.PayloadData = JSON.stringify(frame.PayloadData);
+      frame.PayloadData=JSON.stringify(frame.PayloadData);
     body = new Buffer(frame.PayloadData);
   }
   var l = body.length;
@@ -151,13 +168,13 @@ function handShark(svr,sk,buffer){
 }
 
 // 数据处理
-function parseFrame(svr,socket,buffer){
-  let frame = decodeDataFrame(buffer);
-  if(!frame) return;
+function handleFrame(svr,socket){
+  let frame = decodeDataFrame(socket);
   if(!frame) {
-    console.error('WebSocket Error: Can\'t parse buffer data');
-    return;
+    //console.error("WebSocket Error: Can't parse buffer data");
+    return false;
   }
+  if(!frame.FIN) return false;
   // 经过多次试验，在前端断开后均会在code为10之后立即传回8
   // 第一次ping时即返回8，则取socketId.
   if(frame.Opcode === 8) { //close
@@ -166,11 +183,11 @@ function parseFrame(svr,socket,buffer){
     socket.conn.end();
     socket.closed=true;
     svr.emit('close', socket);
-    return;
+    return true;
   }
   if(frame.Opcode === 10) { //pong
     //console.error("pong",socket.id);
-    return
+    return true;
   }
   //console.log('WebSocket Recive: ',frame);
   // 接收的数据
@@ -178,6 +195,7 @@ function parseFrame(svr,socket,buffer){
     svr.emit('text', frame.PayloadData.toString(), socket);//把缓冲区转换成字符串
   else //二进制数据
     svr.emit('data', frame.PayloadData, socket);
+  return true;
 }
 
 Server.prototype.start = function(port) {
@@ -188,8 +206,14 @@ Server.prototype.start = function(port) {
       if(socket == null){ //握手
         socket = handShark(that,sk,buffer);
       }
-      else{
-        parseFrame(that,socket,buffer);
+      else{ //数据
+        //console.notice("Recive Data count: "+buffer.length+"  0x"+buffer.toString("hex",0,16));
+        if(socket.buffer && socket.buffer.length>0)
+          socket.buffer=Buffer.concat(socket.buffer,buffer);
+        else
+          socket.buffer=buffer;
+        buffer=null;
+        while(socket.buffer && handleFrame(that,socket));
       }
     }).on('close',function(e){
       if(!socket.closed)
@@ -199,7 +223,7 @@ Server.prototype.start = function(port) {
     if(err)
       console.error(err),console.trace();
     else
-      console.info('WebSocket Server Running at port ' + port);
+      console.notice('WebSocket Server Running at port ' + port);
   });
 }
 
