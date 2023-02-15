@@ -5,11 +5,7 @@ A Node.js module for WebSocket server. Simple to use, blazing fast and thoroughl
 
 
 ## download & install
-    // in package.json
-    "dependencies": {
-      "node.websocket": ">=0.0.1"
-    }
-    $ npm install
+    down from https://github.com/lzpong/node.websocket
 
 ## config & run
     
