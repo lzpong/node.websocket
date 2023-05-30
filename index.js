@@ -209,7 +209,7 @@ Server.prototype.start = function(port) {
       else{ //数据
         //console.notice("Recive Data count: "+buffer.length+"  0x"+buffer.toString("hex",0,16));
         if(socket.buffer && socket.buffer.length>0)
-          socket.buffer=Buffer.concat(socket.buffer,buffer);
+          socket.buffer=Buffer.concat([socket.buffer,buffer]);
         else
           socket.buffer=buffer;
         buffer=null;
